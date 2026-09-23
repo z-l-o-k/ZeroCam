@@ -174,33 +174,75 @@ https://downloads.raspberrypi.org/raspios_lite_armhf/images/raspios_lite_armhf-2
 
 and choose "Use custom" in the Imager.
 
-**2. Prepare the card.** With it mounted as `/Volumes/boot` on a Mac:
+**2. Prepare the card.** With it mounted as `/Volumes/boot` on a Mac, and
+`zerocam.py`, `build.sh` and `clean.sh` in the folder you run this from:
 
 ```sh
 V=/Volumes/boot
 
-# Enable ssh and create a temporary account (password: zerocam)
 touch $V/ssh
-echo 'zerocam:$6$5vvHpwbyTyNF6ai9$kERzebWk8g1o/RAaC1NdkoAGj2ZNBqA5X7P0CoyrUrtTOaR/8MRMdMvIr3WCAmR3d8Wp6Zc455hh39/i9fAH01' > $V/userconf.txt
+cp zerocam.py build.sh clean.sh $V/
 
 # USB gadget networking, forced into peripheral mode
+sed -i '' '/dwc2/d' $V/config.txt
 echo 'dtoverlay=dwc2,dr_mode=peripheral' >> $V/config.txt
+
+# Remove the first-boot init so the root partition does not expand,
+# and add the gadget modules and our own first-run script.
 sed -i '' -e 's| init=/usr/lib/raspberrypi-sys-mods/firstboot||' \
+          -e 's| modules-load=dwc2,g_ether||' \
           -e 's|rootwait|rootwait modules-load=dwc2,g_ether|' $V/cmdline.txt
 
-# The build files
-cp zerocam.py build.sh clean.sh $V/
+cat > $V/firstrun.sh <<'EOF'
+#!/bin/bash
+exec > /boot/firstrun.log 2>&1
+set -x
+mount -o remount,rw /
+useradd -m -s /bin/bash zerocam
+echo 'zerocam:$6$Kx1LUqRd6tAkRYtf$rWvHogNXCtidhk2rJ4UDwZ5f03fesCfKwaDOF/Dns.UQgU7b/NKvIefMATgSdjbXvQTYhhuvJ4.6trdLjd0hU0' | chpasswd -e
+for g in sudo adm dialout cdrom audio video plugdev games users input netdev gpio i2c spi; do
+    adduser zerocam "$g"
+done
+echo 'zerocam ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/010_zerocam-nopasswd
+chmod 0440 /etc/sudoers.d/010_zerocam-nopasswd
+sync
+sed -i 's| systemd.run=[^ ]*||g; s| systemd.run_success_action=[^ ]*||g; s| systemd.unit=[^ ]*||g' /boot/cmdline.txt
+rm -f /boot/firstrun.sh
+sync
+exit 0
+EOF
+
+NEW="$(tr -d '\n' < $V/cmdline.txt) systemd.run=/boot/firstrun.sh systemd.run_success_action=reboot systemd.unit=kernel-command-line.target"
+echo "$NEW" > $V/cmdline.txt
 ```
 
-Removing the `firstboot` entry is what stops the root partition expanding to
-fill the card. That is what keeps the finished image at 2GB instead of the size
-of whatever card you built it on.
+Two things are happening here, and they are easy to confuse.
+
+Removing the `init=.../firstboot` entry is what stops the root partition
+expanding to fill the card. That is what keeps the finished image around 2GB
+instead of the size of whatever card you built it on.
+
+But that same init is also what creates the account from `userconf.txt`, so
+removing it leaves a card you cannot log into. Hence `firstrun.sh`, which uses
+a separate one-shot mechanism to create the account, then deletes itself and
+strips its own entry from the command line so it runs exactly once. It leaves
+`firstrun.log` on the boot partition, readable from any computer, which is the
+only diagnostic you get on a machine with no screen.
+
+The temporary account is `zerocam` with password `zerocam`. It is replaced by
+`clean.sh` later.
 
 **3. Share the Mac's connection.** Plug the Pi into the **inner** micro USB
 socket, wait for it to boot, then turn on Internet Sharing (from Wi-Fi, to the
 Ethernet Gadget that has just appeared). Then unplug the Pi and plug it back
 in, so that it asks for an address while the sharing is already running. This
 ordering matters and is the single most common reason this fails.
+
+The first boot runs `firstrun.sh` and then reboots itself, so allow four
+minutes rather than two. If the Mac reports `status: inactive` for the gadget
+interface, the Pi is not presenting the link: check `dr_mode=peripheral` is in
+`config.txt` and that you are in the inner socket, not the outer power-only
+one.
 
 **4. Connect and build:**
 
