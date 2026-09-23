@@ -92,8 +92,9 @@ echo "[4/7] Removing kernels for Pi models this cannot run on"
 # ---------------------------------------------------------------
 # ZeroCam targets the Pi Zero and Zero 2 W, which use kernel.img (armv6)
 # and kernel7.img (armv7) respectively. The Pi 4 and Pi 5 kernels and
-# their initramfs images are roughly 50MB of dead weight on a partition
-# that also has to hold your photographs.
+# their initramfs images are dead weight on a partition that also has to
+# hold your photographs. How much this frees depends on the image; the
+# script reports the real figure below rather than promising one.
 BEFORE=$(df -k "$BOOT" | awk 'NR==2 {print $4}')
 for f in kernel7l.img kernel8.img initramfs7l initramfs8; do
     rm -f "$BOOT/$f" && echo "      removed $f"
