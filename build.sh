@@ -16,7 +16,7 @@
 # own package servers, and installs nothing that is not listed in
 # PACKAGES below.
 #
-# MIT licensed. https://github.com/ZLOK/zerocam
+# MIT licensed. https://github.com/z-l-o-k/ZeroCam
 
 set -e
 

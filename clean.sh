@@ -14,7 +14,7 @@
 # your ssh keys and your shell history. Do not run it on a camera you
 # are still using.
 #
-# MIT licensed. https://github.com/ZLOK/zerocam
+# MIT licensed. https://github.com/z-l-o-k/ZeroCam
 
 set -e
 

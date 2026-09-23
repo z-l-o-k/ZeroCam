@@ -28,7 +28,7 @@ If anything goes wrong, the error is drawn on the screen and written to
 zerocam-error.txt on the same FAT partition, readable on any computer.
 
 Written by Claude (Anthropic) directed by ZLOK. Read it before you run it.
-MIT licensed. https://github.com/ZLOK/zerocam
+MIT licensed. https://github.com/z-l-o-k/ZeroCam
 """
 
 import os
